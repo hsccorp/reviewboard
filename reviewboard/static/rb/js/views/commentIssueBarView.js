@@ -86,6 +86,19 @@ RB.CommentIssueBarView = Backbone.View.extend({
                          this);
         this._showStatus(this._issueStatus);
 
+        /* Add any hooks */
+        RB.CommentIssueBarActionHook.each(function(hook) {
+            var HookViewType = hook.get('viewType'),
+                hookView = new HookViewType({
+                    commentIssueBar : this,
+                    commentIssueManager : this._manager
+                });
+
+            this.$('.issue-container').append(hookView.$el);
+
+            hookView.render();
+        }, this);
+
         return this;
     },
 

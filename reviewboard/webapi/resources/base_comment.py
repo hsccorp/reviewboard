@@ -271,3 +271,36 @@ class BaseCommentResource(MarkdownFieldsMixin, WebAPIResource):
         return (comment.review.get().public and
                 (comment.issue_opened or issue_opened) and
                 issue_status != comment.issue_status)
+
+
+    def should_update_extra_data(self, comment, extra_field=None, **kwargs):
+        """Returns True if the comment should have its extra data updated.
+
+        Determines if a comment should have its extra data updated based
+        on the review, and the arguments passed in the request.
+        """
+        if not kwargs['extra_fields']:
+            return False
+
+        return (comment.review.get().public)
+
+    def update_extra_data(self, request, comment_resource, *args, **kwargs):
+        """Updates the extra data for a comment.
+
+        Handles all of the logic for updating the extra data
+        """
+        try:
+            comment = comment_resource.get_object(request, *args, **kwargs)
+        except ObjectDoesNotExist:
+            return DOES_NOT_EXIST
+
+        # Check permissions to change the extra data
+        if not comment.can_change_extra_data(request.user):
+            return self.get_no_access_error(request)
+
+        self.import_extra_data(comment, comment.extra_data, kwargs['extra_fields'])
+        comment.save()
+
+        return 200, {
+            comment_resource.item_result_key: comment
+        }

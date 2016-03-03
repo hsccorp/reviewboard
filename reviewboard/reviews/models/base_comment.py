@@ -125,6 +125,19 @@ class BaseComment(models.Model):
         return (self.get_review_request().is_mutable_by(user) or
                 user == self.get_review().user)
 
+    def can_change_extra_data(self, user):
+        """Returns whether the user can change the extra data.
+
+        Currently, this is allowed for:
+        - The user who owns the review request.
+        - The user who opened the issue (posted the comment).
+        """
+        if not (user and user.is_authenticated()):
+            return False
+
+        return (self.get_review_request().is_mutable_by(user) or
+                user == self.get_review().user)
+
     def save(self, **kwargs):
         from reviewboard.reviews.models.review_request import ReviewRequest
 
