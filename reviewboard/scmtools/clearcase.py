@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import re
 
 from reviewboard.diffviewer.parser import DiffParser
 from reviewboard.scmtools.core import SCMTool, HEAD, PRE_CREATION
@@ -56,6 +57,7 @@ class ClearCaseTool(SCMTool):
 
     def __init__(self, repository):
         self.repopath = repository.path
+#        logging.debug("repopath: %s",repository.path)
 
         SCMTool.__init__(self, repository)
 
@@ -151,7 +153,10 @@ class ClearCaseTool(SCMTool):
         }
 
     def _get_view_type(self, repopath):
-        cmdline = ["cleartool", "lsview", "-full", "-properties", "-cview"]
+#        logging.debug("@VY1: repopath:%s ", repopath)
+        view_name = repopath.split("/")[2]
+#        logging.debug("@VY1: view name:%s", view_name)
+        cmdline = ["cleartool", "lsview", "-full", "-properties", view_name]
         p = subprocess.Popen(
             cmdline,
             stdout=subprocess.PIPE,
@@ -238,23 +243,39 @@ class ClearCaseTool(SCMTool):
         if revision == PRE_CREATION:
             return ''
 
+        # Check if review was posted from some Windows PC
+        win_path = re.findall("^[A-Z]:/.*?/", extended_path)
+#        logging.debug("@VY141: win_path:%s",win_path)
+        if len(win_path):
+            # Posted from windows PC. Extended path start with <drice letter>:/vob/
+            new_path = self.repopath + "/" + extended_path[len(win_path[0]):]
+        else:
+            # Not posted from Window
+            view_name = self.repopath.split("/")[2]
+            new_path = "/view/" + view_name
+            if not extended_path.startswith("/"):
+                new_path = new_path + "/"
+            new_path = new_path + extended_path
+#        logging.debug("@VY17: check path %s", new_path)
+
         if self.viewtype == self.VIEW_SNAPSHOT:
             # Get the path to (presumably) file element (remove version)
             # The '@@' at the end of file_path is required.
-            file_path = extended_path.rsplit('@@', 1)[0] + '@@'
+            file_path = new_path.rsplit('@@', 1)[0] + '@@'
             okind = self._get_object_kind(file_path)
 
             if okind == 'directory element':
                 raise SCMError('Directory elements are unsupported.')
             elif okind == 'file element':
-                output = self.client.cat_file(extended_path, revision)
+                output = self.client.cat_file(new_path, revision)
             else:
-                raise FileNotFoundError(extended_path, revision)
+                raise FileNotFoundError(new_path, revision)
         else:
-            if cpath.isdir(extended_path):
-                output = self.client.list_dir(extended_path, revision)
-            elif cpath.exists(extended_path):
-                output = self.client.cat_file(extended_path, revision)
+            if cpath.isdir(new_path):
+                output = self.client.list_dir(new_path, revision)
+            elif cpath.exists(new_path):
+#                logging.debug("@VY12: file found")
+                output = self.client.cat_file(new_path, revision)
             else:
                 raise FileNotFoundError(extended_path, revision)
 
