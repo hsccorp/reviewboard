@@ -138,6 +138,10 @@ class ReviewFileAttachmentCommentResource(BaseFileAttachmentCommentResource):
         if self.should_update_issue_status(file_comment, **kwargs):
             return self.update_issue_status(request, self, *args, **kwargs)
 
+        # Determine whether or not we're updating the extra data.
+        if self.should_update_extra_data(file_comment, **kwargs):
+            return self.update_extra_data(request, self, *args, **kwargs)
+
         if not resources.review.has_modify_permissions(request, review):
             return self.get_no_access_error(request)
 
